@@ -156,9 +156,10 @@ class GraySwanGuardrail(CustomGuardrail):
 
         verbose_proxy_logger.debug("Gray Swan Guardrail: pre-call hook triggered")
 
-        messages = data.get("messages")
+        # Extract messages from various API formats
+        messages = self._extract_messages_from_data(data)
         if not messages:
-            verbose_proxy_logger.debug("Gray Swan Guardrail: No messages in data")
+            verbose_proxy_logger.debug("Gray Swan Guardrail: No messages, input, or prompt in data")
             return data
 
         dynamic_body = self.get_guardrail_dynamic_request_body_params(data) or {}
@@ -202,9 +203,10 @@ class GraySwanGuardrail(CustomGuardrail):
 
         verbose_proxy_logger.debug("GraySwan Guardrail: during-call hook triggered")
 
-        messages = data.get("messages")
+        # Extract messages from various API formats
+        messages = self._extract_messages_from_data(data)
         if not messages:
-            verbose_proxy_logger.debug("Gray Swan Guardrail: No messages in data")
+            verbose_proxy_logger.debug("Gray Swan Guardrail: No messages, input, or prompt in data")
             return data
 
         dynamic_body = self.get_guardrail_dynamic_request_body_params(data) or {}
@@ -357,6 +359,38 @@ class GraySwanGuardrail(CustomGuardrail):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _extract_messages_from_data(self, data: dict) -> Optional[list]:
+        """
+        Extract messages from request data, supporting multiple API formats.
+
+        Supports:
+        - Chat Completions / Anthropic Messages: "messages" field
+        - Responses API: "input" field (converted to messages)
+        - Text Completions: "prompt" field (converted to messages)
+
+        Args:
+            data: Request data dictionary
+
+        Returns:
+            List of message dictionaries, or None if no valid input found
+        """
+        # Check for messages format (chat completions, anthropic)
+        messages = data.get("messages")
+        if messages:
+            return messages
+
+        # Check for Responses API format
+        input_text = data.get("input")
+        if input_text:
+            return [{"role": "user", "content": input_text}]
+
+        # Check for Text Completions API format
+        prompt_text = data.get("prompt")
+        if prompt_text:
+            return [{"role": "user", "content": prompt_text}]
+
+        return None
 
     def _prepare_headers(self) -> Dict[str, str]:
         return {
