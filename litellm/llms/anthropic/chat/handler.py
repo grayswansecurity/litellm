@@ -1062,7 +1062,11 @@ class ModelResponseIterator:
             str_line = str_line[index:]
 
         if str_line.startswith("data:"):
-            data_json = json.loads(str_line[5:])
+            payload = str_line[5:].strip()
+            # Ignore empty data payloads or non-JSON markers (e.g., [DONE])
+            if not payload or payload == "[DONE]":
+                return ModelResponseStream(id=self.response_id)
+            data_json = json.loads(payload)
             return self.chunk_parser(chunk=data_json)
         else:
             return ModelResponseStream(id=self.response_id)
